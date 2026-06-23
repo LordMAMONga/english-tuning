@@ -68,7 +68,7 @@ const PhoneSvg = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
 
@@ -89,7 +89,7 @@ const InstagramSvg = () => (
 );
 
 export function SelectPlanPage() {
-  const { logout, user } = useAuthStore();
+  const { logout, user, token, setAuth } = useAuthStore();
   const navigate = useNavigate();
 
   const [selectedPlan, setSelectedPlan] = useState<ActualPlanType>("ADULT");
@@ -97,23 +97,26 @@ export function SelectPlanPage() {
     null,
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedAmount, setCopiedAmount] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
 
   const isSkippedUser = user?.level === "SKIPPED";
 
-  const { data: statusData } = useQuery({
-    queryKey: ["pollingPayment", paymentData?.paymentId],
-    queryFn: () => paymentApi.checkPaymentStatus(paymentData!.paymentId),
+  const { data: profileData } = useQuery({
+    queryKey: ["pollingUserProfile"],
+    queryFn: () => paymentApi.getProfile(),
     enabled: !!paymentData,
     refetchInterval: 5000,
   });
 
-  const isPaid = statusData?.status === "PAID";
+  const isPaid =
+    profileData?.activeTariff !== null &&
+    profileData?.activeTariff !== undefined;
 
   const handleCreateInvoice = async () => {
     try {
       setIsLoading(true);
-      const data = await paymentApi.createPayment(selectedPlan as any);
+      const data = await paymentApi.createPayment(selectedPlan);
       setPaymentData(data);
     } catch (err) {
       alert("Ошибка при создании заявки");
@@ -122,10 +125,15 @@ export function SelectPlanPage() {
     }
   };
 
-  const handleCopyId = (id: number) => {
-    navigator.clipboard.writeText(String(id));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyText = (text: string, type: "AMOUNT" | "PHONE") => {
+    navigator.clipboard.writeText(text);
+    if (type === "AMOUNT") {
+      setCopiedAmount(true);
+      setTimeout(() => setCopiedAmount(false), 2000);
+    } else {
+      setCopiedPhone(true);
+      setTimeout(() => setCopiedPhone(false), 2000);
+    }
   };
 
   return (
@@ -172,7 +180,7 @@ export function SelectPlanPage() {
             onClick={() => setSelectedPlan("KIDS")}
             className={`bg-zinc-950 rounded-3xl p-8 border-2 transition-all cursor-pointer flex flex-col justify-between ${
               selectedPlan === "KIDS"
-                ? "border-emerald-500 bg-emerald-950/10 shadow-2xl shadow-emerald-950/20"
+                ? "border-emerald-500 bg-emerald-950/10 shadow-2xl"
                 : "border-zinc-800/80 hover:border-zinc-700"
             }`}
           >
@@ -235,7 +243,7 @@ export function SelectPlanPage() {
             onClick={() => setSelectedPlan("ADULT")}
             className={`bg-zinc-950 rounded-3xl p-8 border-2 transition-all cursor-pointer flex flex-col justify-between ${
               selectedPlan === "ADULT"
-                ? "border-emerald-500 bg-emerald-950/10 shadow-2xl shadow-emerald-950/20"
+                ? "border-emerald-500 bg-emerald-950/10 shadow-2xl"
                 : "border-zinc-800/80 hover:border-zinc-700"
             }`}
           >
@@ -294,7 +302,7 @@ export function SelectPlanPage() {
             onClick={() => setSelectedPlan("PERSONAL")}
             className={`bg-zinc-950 rounded-3xl p-8 border-2 transition-all cursor-pointer flex flex-col justify-between ${
               selectedPlan === "PERSONAL"
-                ? "border-emerald-500 bg-emerald-950/10 shadow-2xl shadow-emerald-950/20"
+                ? "border-emerald-500 bg-emerald-950/10 shadow-2xl"
                 : "border-zinc-800/80 hover:border-zinc-700"
             }`}
           >
@@ -371,7 +379,6 @@ export function SelectPlanPage() {
                 оплату
               </p>
             </div>
-
             <div className="grid sm:grid-cols-3 gap-3">
               <a
                 href="https://wa.me/393518654592"
@@ -382,7 +389,6 @@ export function SelectPlanPage() {
                 <PhoneSvg />
                 <span>+39 351 865 4592</span>
               </a>
-
               <a
                 href="tel:+996502083426"
                 className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 p-3.5 rounded-2xl transition-all text-xs font-mono tracking-tight"
@@ -390,7 +396,6 @@ export function SelectPlanPage() {
                 <PhoneSvg />
                 <span>+996 502 08 34 26</span>
               </a>
-
               <a
                 href="https://www.instagram.com/english_tuning?igsh=MTRvMTJvcW9wbDJ2dw=="
                 target="_blank"
@@ -414,13 +419,17 @@ export function SelectPlanPage() {
                   ✓
                 </div>
                 <h3 className="text-2xl font-black text-white">
-                  Оплата зачислена!
+                  Оплата успешно получена!
                 </h3>
                 <button
-                  onClick={() => navigate("/cabinet")}
+                  onClick={() => {
+                    if (user && token)
+                      setAuth(token, { ...user, isPaid: true });
+                    navigate("/cabinet");
+                  }}
                   className="w-full bg-emerald-500 text-black font-black py-4 rounded-2xl text-xs uppercase tracking-wider cursor-pointer"
                 >
-                  Перейти в личный кабинет
+                  Перейти к обучению
                 </button>
               </div>
             ) : (
@@ -428,7 +437,7 @@ export function SelectPlanPage() {
                 <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
                   <span className="text-xs font-mono text-amber-400 uppercase tracking-wider flex items-center gap-2">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Ожидаем
-                    подтверждения платежа...
+                    поступления средств...
                   </span>
                   <button
                     onClick={() => setPaymentData(null)}
@@ -438,71 +447,68 @@ export function SelectPlanPage() {
                   </button>
                 </div>
 
-                {isSkippedUser ? (
-                  <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-4 text-xs text-amber-300 leading-relaxed flex gap-3 items-start">
-                    <span className="text-base">⚠️</span>
-                    <div>
-                      <strong className="font-bold uppercase tracking-wider">
-                        Режим свободного старта:
-                      </strong>{" "}
-                      Вы пропустили тест. После оплаты вам откроется полная база
-                      тарифа. Настроить точный уровень можно будет в кабинете.
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-2xl p-4 text-xs text-emerald-300 leading-relaxed flex gap-3 items-start">
-                    <span className="text-base">🎯</span>
-                    <div>
-                      <strong className="font-bold uppercase tracking-wider">
-                        Уровень зафиксирован:
-                      </strong>{" "}
-                      Материалы курса будут автоматически откалиброваны под ваш
-                      результат ({user?.level}).
-                    </div>
-                  </div>
-                )}
-
-                <div className="text-center py-1">
-                  <p className="text-lg text-zinc-200 leading-relaxed">
-                    Переведите{" "}
-                    <span className="text-emerald-400 font-bold">
-                      {paymentData.amount} СОМ
-                    </span>{" "}
-                    на MBank по номеру{" "}
-                    <span className="text-white font-mono font-bold">
-                      {paymentData.accountNumber}
+                <div className="text-center flex flex-col gap-1 py-2">
+                  <span className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">
+                    Сумма перевода
+                  </span>
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">
+                      {paymentData.amount}
                     </span>
-                  </p>
-                </div>
-
-                <div className="bg-zinc-900/80 border-2 border-emerald-500/50 rounded-2xl p-5 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-4xl font-mono font-black text-emerald-400 tracking-wider select-all">
-                      {paymentData.paymentId}
+                    <span className="text-lg font-bold text-emerald-400">
+                      СОМ
                     </span>
                     <button
-                      onClick={() => handleCopyId(paymentData.paymentId)}
-                      className="px-4 py-3 rounded-xl text-xs font-black bg-emerald-500 text-black uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+                      onClick={() =>
+                        handleCopyText(String(paymentData.amount), "AMOUNT")
+                      }
+                      className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
                     >
-                      {copied ? (
-                        <>
-                          <CheckCheck className="w-4 h-4" />
-                          <span>Скопировано</span>
-                        </>
+                      {copiedAmount ? (
+                        <CheckCheck className="w-4 h-4 text-emerald-400" />
                       ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Скопировать</span>
-                        </>
+                        <Copy className="w-4 h-4" />
                       )}
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-rose-950/40 border border-rose-900/60 rounded-2xl p-4 text-xs text-rose-200 leading-relaxed">
-                  <strong className="font-bold text-rose-400">ВАЖНО:</strong>{" "}
-                  Обязательно вставьте этот код в комментарий к переводу, иначе
-                  доступ не откроется.
+                <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2">
+                  <span className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest block text-center">
+                    Реквизиты MBank
+                  </span>
+                  <div className="flex items-center justify-between bg-black/50 px-4 py-3 rounded-xl border border-zinc-900">
+                    <span className="font-mono font-bold text-zinc-200 select-all">
+                      {paymentData.phoneNumber || "+996 555 123 456"}
+                    </span>
+                    <button
+                      onClick={() =>
+                        handleCopyText(
+                          paymentData.phoneNumber || "+996 555 123 456",
+                          "PHONE",
+                        )
+                      }
+                      className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                    >
+                      {copiedPhone ? (
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-rose-950/40 border border-rose-900/60 rounded-2xl p-4 flex gap-3 items-start text-xs text-rose-200 leading-relaxed">
+                  <span className="text-base flex-shrink-0">⚠️</span>
+                  <div>
+                    <strong className="font-bold text-rose-400 uppercase tracking-wide block mb-0.5">
+                      Внимание (Критично):
+                    </strong>
+                    Переведите сумму СТРОГО с копейками. Если вы округлите
+                    платеж, система не сможет его распознать, и доступ не
+                    откроется.
+                  </div>
                 </div>
               </>
             )}
