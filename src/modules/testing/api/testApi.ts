@@ -23,22 +23,14 @@ export interface BatchAnswerRequest {
 }
 
 export interface TestResultResponse {
-  completed?: boolean;
-  isCompleted?: boolean;
-  status?: string;
-  finalLevel?: string | null;
-  assignedLevel?: string | null;
-  level?: string | null;
-  nextLevel?: string;
+  completed: boolean;
+  currentBatch: number;
+  finalResultLevel: string | null;
+  totalCorrectAnswers?: number;
 }
-
-const USE_MOCKS = false;
 
 export const testApi = {
   startTest: async (userId: number): Promise<StartTestResponse> => {
-    if (USE_MOCKS) {
-      return { id: 1001, userId, status: "IN_PROGRESS" };
-    }
     const response = await apiClient.post<StartTestResponse>(
       `/api/test/start?userId=${userId}`,
     );
@@ -46,18 +38,6 @@ export const testApi = {
   },
 
   getNextBatch: async (sessionId: number): Promise<Question[]> => {
-    if (USE_MOCKS) {
-      return [
-        {
-          id: 99,
-          text: "Choose the correct option: 'I ___ a software engineer.'",
-          options: [
-            { id: 1, text: "am" },
-            { id: 2, text: "is" },
-          ],
-        },
-      ];
-    }
     const response = await apiClient.get<Question[]>(
       `/api/test/${sessionId}/next-batch`,
     );
@@ -68,9 +48,6 @@ export const testApi = {
     sessionId: number,
     request: BatchAnswerRequest,
   ): Promise<TestResultResponse> => {
-    if (USE_MOCKS) {
-      return { completed: false };
-    }
     const response = await apiClient.post<TestResultResponse>(
       `/api/test/${sessionId}/submit-batch`,
       request,

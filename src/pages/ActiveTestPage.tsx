@@ -82,20 +82,13 @@ export function ActiveTestPage() {
         selectedOptionIds: optionIds,
       });
 
-      const isDone = Boolean(
-        res.completed ||
-        res.isCompleted ||
-        res.status === "COMPLETED" ||
-        batchIndex >= 10,
-      );
-
-      if (isDone) {
-        const finalResultLevel =
-          res.finalLevel || res.assignedLevel || res.level || "B2";
-        setConfirmedLevel(finalResultLevel);
+      if (res.completed || res.finalResultLevel) {
+        setConfirmedLevel(res.finalResultLevel || "A1");
         setStage("RESULT");
       } else {
-        const nextBatchNum = batchIndex + 1;
+        const nextBatchNum = res.currentBatch
+          ? res.currentBatch + 1
+          : batchIndex + 1;
         setBatchIndex(nextBatchNum);
         await loadBatchFromServer(activeSession);
       }
