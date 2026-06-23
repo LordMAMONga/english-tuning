@@ -14,22 +14,30 @@ export interface Question {
 export interface StartTestResponse {
   id: number;
   userId: number;
-  status: "IN_PROGRESS" | "COMPLETED";
-  createdAt: string;
+  status?: string;
+  createdAt?: string;
 }
 
-const USE_MOCKS = true;
+export interface BatchAnswerRequest {
+  selectedOptionIds: number[];
+}
+
+export interface TestResultResponse {
+  completed?: boolean;
+  isCompleted?: boolean;
+  status?: string;
+  finalLevel?: string | null;
+  assignedLevel?: string | null;
+  level?: string | null;
+  nextLevel?: string;
+}
+
+const USE_MOCKS = false;
 
 export const testApi = {
   startTest: async (userId: number): Promise<StartTestResponse> => {
     if (USE_MOCKS) {
-      await new Promise((r) => setTimeout(r, 400));
-      return {
-        id: 888,
-        userId,
-        status: "IN_PROGRESS",
-        createdAt: new Date().toISOString(),
-      };
+      return { id: 1001, userId, status: "IN_PROGRESS" };
     }
     const response = await apiClient.post<StartTestResponse>(
       `/api/test/start?userId=${userId}`,
@@ -37,45 +45,35 @@ export const testApi = {
     return response.data;
   },
 
-  getNextBatch: async (
-    _sessionId: number,
-    level: string = "A1",
-  ): Promise<Question[]> => {
+  getNextBatch: async (sessionId: number): Promise<Question[]> => {
     if (USE_MOCKS) {
-      await new Promise((r) => setTimeout(r, 500));
-      const p = Math.floor(Math.random() * 800) + 10;
       return [
         {
-          id: p + 1,
-          text: `[Уровень ${level}] Выберите правильную форму: "Yesterday the developers ___ the core module."`,
+          id: 99,
+          text: "Choose the correct option: 'I ___ a software engineer.'",
           options: [
-            { id: 1, text: "rewrote" },
-            { id: 2, text: "rewrite" },
-            { id: 3, text: "rewritten" },
-          ],
-        },
-        {
-          id: p + 2,
-          text: `[Уровень ${level}] Заполните пропуск: "Our system is fully secured ___ unauthorized access."`,
-          options: [
-            { id: 1, text: "against" },
-            { id: 2, text: "from" },
-            { id: 3, text: "for" },
-          ],
-        },
-        {
-          id: p + 3,
-          text: `[Уровень ${level}] Укажите наиболее точный синоним к слову "Mandatory":`,
-          options: [
-            { id: 1, text: "Required" },
-            { id: 2, text: "Optional" },
-            { id: 3, text: "Secondary" },
+            { id: 1, text: "am" },
+            { id: 2, text: "is" },
           ],
         },
       ];
     }
     const response = await apiClient.get<Question[]>(
-      `/api/test/${_sessionId}/next-batch?level=${level}`,
+      `/api/test/${sessionId}/next-batch`,
+    );
+    return response.data;
+  },
+
+  submitBatch: async (
+    sessionId: number,
+    request: BatchAnswerRequest,
+  ): Promise<TestResultResponse> => {
+    if (USE_MOCKS) {
+      return { completed: false };
+    }
+    const response = await apiClient.post<TestResultResponse>(
+      `/api/test/${sessionId}/submit-batch`,
+      request,
     );
     return response.data;
   },

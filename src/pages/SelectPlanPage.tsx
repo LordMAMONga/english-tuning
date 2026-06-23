@@ -1,13 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/modules/auth/store/useAuthStore";
-import {
-  paymentApi,
-  type CreatePaymentResponse,
-} from "@/modules/payment/api/paymentApi";
-import { Check, Copy, CheckCheck, Loader2, LogOut } from "lucide-react";
+import { Check, Copy, CheckCheck, LogOut, QrCode } from "lucide-react";
 import { Logo } from "@/shared/ui/Logo";
+import mbankQr from "@/assets/mbank-qr.jpg";
 
 type ActualPlanType = "KIDS" | "ADULT" | "PERSONAL";
 
@@ -88,52 +83,28 @@ const InstagramSvg = () => (
   </svg>
 );
 
+const MBankBadge = () => (
+  <div className="flex items-center gap-1.5 bg-[#00A651]/15 border border-[#00A651]/40 px-3 py-1 rounded-xl text-[#00A651] font-black tracking-wider text-xs shadow-sm">
+    <span className="bg-[#00A651] text-black w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[9px]">
+      M
+    </span>
+    <span>MBANK</span>
+  </div>
+);
+
 export function SelectPlanPage() {
-  const { logout, user, token, setAuth } = useAuthStore();
-  const navigate = useNavigate();
+  const { logout, user } = useAuthStore();
 
   const [selectedPlan, setSelectedPlan] = useState<ActualPlanType>("ADULT");
-  const [paymentData, setPaymentData] = useState<CreatePaymentResponse | null>(
-    null,
-  );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedAmount, setCopiedAmount] = useState(false);
-  const [copiedPhone, setCopiedPhone] = useState(false);
 
   const isSkippedUser = user?.level === "SKIPPED";
 
-  const { data: profileData } = useQuery({
-    queryKey: ["pollingUserProfile"],
-    queryFn: () => paymentApi.getProfile(),
-    enabled: !!paymentData,
-    refetchInterval: 5000,
-  });
-
-  const isPaid =
-    profileData?.activeTariff !== null &&
-    profileData?.activeTariff !== undefined;
-
-  const handleCreateInvoice = async () => {
-    try {
-      setIsLoading(true);
-      const data = await paymentApi.createPayment(selectedPlan);
-      setPaymentData(data);
-    } catch (err) {
-      alert("Ошибка при создании заявки");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCopyText = (text: string, type: "AMOUNT" | "PHONE") => {
-    navigator.clipboard.writeText(text);
-    if (type === "AMOUNT") {
-      setCopiedAmount(true);
-      setTimeout(() => setCopiedAmount(false), 2000);
-    } else {
-      setCopiedPhone(true);
-      setTimeout(() => setCopiedPhone(false), 2000);
-    }
+  const handleCopyAmount = () => {
+    navigator.clipboard.writeText("3000");
+    setCopiedAmount(true);
+    setTimeout(() => setCopiedAmount(false), 2000);
   };
 
   return (
@@ -360,11 +331,10 @@ export function SelectPlanPage() {
 
         <div className="mt-12 max-w-md mx-auto">
           <button
-            onClick={handleCreateInvoice}
-            disabled={isLoading}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black py-4 rounded-2xl font-black text-sm transition-all cursor-pointer"
+            onClick={() => setIsModalOpen(true)}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black py-4 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-lg"
           >
-            {isLoading ? "Формирование заявки..." : "Перейти к оплате"}
+            Перейти к оплате
           </button>
         </div>
 
@@ -410,108 +380,79 @@ export function SelectPlanPage() {
         </div>
       </main>
 
-      {paymentData && (
+      {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 rounded-3xl max-w-md w-full p-8 border border-zinc-800 flex flex-col gap-6 relative shadow-2xl">
-            {isPaid ? (
-              <div className="py-8 text-center flex flex-col gap-6">
-                <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-black font-black text-3xl mx-auto">
-                  ✓
-                </div>
-                <h3 className="text-2xl font-black text-white">
-                  Оплата успешно получена!
-                </h3>
+          <div className="bg-zinc-950 rounded-3xl max-w-md w-full p-8 border border-zinc-800 flex flex-col gap-6 relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                  Оплата курса
+                </span>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-zinc-500 hover:text-white text-base leading-none cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-center flex flex-col gap-1 py-1">
+              <span className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">
+                Сумма к переводу
+              </span>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-5xl sm:text-6xl font-black text-white tracking-tight">
+                  3000
+                </span>
+                <span className="text-xl font-bold text-emerald-400">СОМ</span>
                 <button
-                  onClick={() => {
-                    if (user && token)
-                      setAuth(token, { ...user, isPaid: true });
-                    navigate("/cabinet");
-                  }}
-                  className="w-full bg-emerald-500 text-black font-black py-4 rounded-2xl text-xs uppercase tracking-wider cursor-pointer"
+                  onClick={handleCopyAmount}
+                  className="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer active:scale-95"
+                  title="Скопировать сумму"
                 >
-                  Перейти к обучению
+                  {copiedAmount ? (
+                    <CheckCheck className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
                 </button>
               </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
-                  <span className="text-xs font-mono text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Ожидаем
-                    поступления средств...
-                  </span>
-                  <button
-                    onClick={() => setPaymentData(null)}
-                    className="text-zinc-500 hover:text-white text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
+            </div>
 
-                <div className="text-center flex flex-col gap-1 py-2">
-                  <span className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">
-                    Сумма перевода
-                  </span>
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">
-                      {paymentData.amount}
-                    </span>
-                    <span className="text-lg font-bold text-emerald-400">
-                      СОМ
-                    </span>
-                    <button
-                      onClick={() =>
-                        handleCopyText(String(paymentData.amount), "AMOUNT")
-                      }
-                      className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
-                    >
-                      {copiedAmount ? (
-                        <CheckCheck className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-4 items-center">
+              <div className="flex items-center justify-between w-full">
+                <span className="text-zinc-300 text-xs font-medium">
+                  Получатель:{" "}
+                  <strong className="text-white font-bold">Эмир Ж.</strong>
+                </span>
+                <MBankBadge />
+              </div>
 
-                <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2">
-                  <span className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest block text-center">
-                    Реквизиты MBank
-                  </span>
-                  <div className="flex items-center justify-between bg-black/50 px-4 py-3 rounded-xl border border-zinc-900">
-                    <span className="font-mono font-bold text-zinc-200 select-all">
-                      {paymentData.phoneNumber || "+996 555 123 456"}
-                    </span>
-                    <button
-                      onClick={() =>
-                        handleCopyText(
-                          paymentData.phoneNumber || "+996 555 123 456",
-                          "PHONE",
-                        )
-                      }
-                      className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
-                    >
-                      {copiedPhone ? (
-                        <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+              <div className="bg-white p-3 rounded-2xl shadow-xl w-48 h-48 flex items-center justify-center select-none">
+                <img
+                  src={mbankQr}
+                  alt="MBank QR"
+                  className="w-full h-full object-contain pointer-events-none"
+                />
+              </div>
 
-                <div className="bg-rose-950/40 border border-rose-900/60 rounded-2xl p-4 flex gap-3 items-start text-xs text-rose-200 leading-relaxed">
-                  <span className="text-base flex-shrink-0">⚠️</span>
-                  <div>
-                    <strong className="font-bold text-rose-400 uppercase tracking-wide block mb-0.5">
-                      Внимание (Критично):
-                    </strong>
-                    Переведите сумму СТРОГО с копейками. Если вы округлите
-                    платеж, система не сможет его распознать, и доступ не
-                    откроется.
-                  </div>
-                </div>
-              </>
-            )}
+              <p className="text-[11px] text-zinc-400 text-center leading-relaxed">
+                Откройте приложение{" "}
+                <span className="text-white font-bold">MBank</span>, нажмите на
+                сканер QR-кодов и наведите камеру на этот экран.
+              </p>
+            </div>
+
+            <a
+              href="https://wa.me/996502083426?text=Здравствуйте,%20я%20оплатил(а)%20курс%20English%20Tuning.%20Вот%20мой%20чек:"
+              target="_blank"
+              rel="noreferrer"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-black font-black py-3.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all text-center shadow-lg block cursor-pointer"
+            >
+              Я оплатил(а) — Отправить чек
+            </a>
           </div>
         </div>
       )}
